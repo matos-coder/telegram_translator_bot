@@ -1,2 +1,6 @@
 .env
 venv
+admin_bot_session.session
+admin_bot_session.session-journal
+userbot_session.session
+userbot_session.session-journal
