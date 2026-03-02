@@ -1,51 +1,70 @@
 import os
 from telethon import TelegramClient, events
+from telethon.tl.functions.messages import GetMessagesRequest
 
 def setup_bot_handlers(admin_bot: TelegramClient):
-    
     TARGET_CHANNEL = os.getenv("TARGET_CHANNEL")
-    
-    # Try to convert to int if it looks like a numeric ID
     try:
         if TARGET_CHANNEL.startswith("-100") or TARGET_CHANNEL.isdigit():
             TARGET_CHANNEL = int(TARGET_CHANNEL)
-    except ValueError:
-        pass
-
-    # Pre-fetch the entity to save the access hash to the session
-    try:
-        admin_bot.get_entity(TARGET_CHANNEL)
-        print(f"✅ Target channel {TARGET_CHANNEL} is ready.")
-    except Exception as e:
-        print(f"⚠️ Warning: Bot hasn't 'seen' the channel yet: {e}")
+    except: pass
 
     @admin_bot.on(events.CallbackQuery())
     async def handle_buttons(event):
-        action = event.data
-        msg = await event.get_message()
-        reply_msg = await msg.get_reply_message()
+        await event.answer()
         
-        if action == b"reject_draft":
-            print("\n🗑️ Rejecting draft...")
-            await event.delete()
+        try:
+            data = event.data.decode().split(":")
+            if len(data) < 2: return
+                
+            action = data[0]
+            # Convert string IDs back to integers
+            msg_ids = [int(i) for i in data[1].split(",") if i.strip()]
 
-            if reply_msg:
-                # await admin_bot.delete_messages(event.chat_id, reply_msg.id)
-                await reply_msg.delete()
-            print("✅ Draft rejected successfully.")
-            
-        elif action == b"post_draft":
-            print("\n📤 Manually posting to target channel...")
-            await event.answer() 
-            
-            try:
-                if reply_msg:
-                    # Telethon makes it beautifully simple to forward/copy messages
-                    await admin_bot.send_message(TARGET_CHANNEL, reply_msg)
-                else:
-                    await admin_bot.send_message(TARGET_CHANNEL, msg.text)
-                    
-                await event.edit("✅ Manually Accepted & Posted")
-                print("✅ Post successful!")
-            except Exception as e:
-                print(f"❌ Failed to post draft: {e}")
+            if action == "reject_album":
+                print("\n🗑️ Rejecting draft...")
+                await event.delete()
+                # Delete the original media and the "Draft ready" message
+                await admin_bot.delete_messages(event.chat_id, msg_ids + [event.message_id])
+                
+            elif action == "post_album":
+                print("\n📤 Manually posting to target channel...")
+                
+                # 1. Fetch the messages using the high-level get_messages
+                album_messages = await admin_bot.get_messages(event.chat_id, ids=msg_ids)
+                
+                # 2. Filter out any None or MessageEmpty results
+                valid_messages = [m for m in album_messages if m and not hasattr(m, 'empty')]
+
+                if not valid_messages:
+                    print("❌ No valid messages found to post.")
+                    return
+
+                # 3. Sort messages to ensure the one with the caption comes first
+                valid_messages.sort(key=lambda x: x.id)
+
+                # 4. Extract the caption from the first message in the group
+                # Telegram usually stores the album caption in the first message's text field
+                final_caption = next((m.text for m in valid_messages if m.text), None)
+
+                try:
+                    if len(valid_messages) > 1:
+                        # Send as an album with the extracted caption
+                        await admin_bot.send_file(
+                            TARGET_CHANNEL, 
+                            valid_messages, 
+                            caption=final_caption, 
+                            parse_mode='html'
+                        )
+                    else:
+                        # Single message (already contains its own caption/text)
+                        await admin_bot.send_message(TARGET_CHANNEL, valid_messages[0])
+                        
+                    await event.edit("✅ Manually Accepted & Posted")
+                    print("✅ Post successful!")
+                except Exception as e:
+                    print(f"❌ Failed to post: {e}")
+
+
+        except Exception as e:
+            print(f"❌ Error in handle_buttons: {e}")

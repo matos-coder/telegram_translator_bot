@@ -7,7 +7,7 @@ load_dotenv()
 # Initialize the NEW Gemini SDK
 client = genai.Client(api_key=os.getenv("GEMINI_API_KEY"))
 
-async def translate_to_target(text: str, target_lang="English") -> str:
+async def translate_to_target(text: str, target_lang="Amharic") -> str:
     if not text:
         return ""
         
@@ -30,4 +30,4 @@ async def translate_to_target(text: str, target_lang="English") -> str:
         return response.text.strip()
     except Exception as e:
         print(f"❌ Translation Error: {e}")
-        return f"⚠️ TRANSLATION FAILED ⚠️\n\n{text}"
+        return f"\n\n{text}"
