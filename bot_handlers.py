@@ -1,6 +1,7 @@
 import os
 from telethon import TelegramClient, events
 from telethon.tl.functions.messages import GetMessagesRequest
+from media_handler import pending_auto_posts
 
 def setup_bot_handlers(admin_bot: TelegramClient):
     TARGET_CHANNEL = os.getenv("TARGET_CHANNEL")
@@ -27,6 +28,13 @@ def setup_bot_handlers(admin_bot: TelegramClient):
                     
                     msg_ids = [int(i) for i in button_data.split(":")[1].split(",") if i.strip()]
                     custom_text = event.text # The user's manually typed text
+                    
+                    # Inside handle_buttons (after extracting msg_ids_str):
+                    msg_key = tuple(msg_ids)
+                    if msg_key in pending_auto_posts:
+                        pending_auto_posts[msg_key].cancel()
+                        del pending_auto_posts[msg_key]
+                        print("🛑 Auto-post timer cancelled (User took action).")
                     
                     print("\n✏️ Manual Edit Detected! Overriding draft...")
                     
@@ -68,6 +76,13 @@ def setup_bot_handlers(admin_bot: TelegramClient):
             action = data[0]
             # Convert string IDs back to integers
             msg_ids = [int(i) for i in data[1].split(",") if i.strip()]
+            
+            msg_key = tuple(msg_ids) 
+            # Inside handle_buttons (after extracting msg_ids_str):
+            if msg_key in pending_auto_posts:
+                pending_auto_posts[msg_key].cancel()
+                del pending_auto_posts[msg_key]
+                print("🛑 Auto-post timer cancelled (User took action).")
 
             if action == "reject_album":
                 print("\n🗑️ Rejecting draft...")
@@ -112,7 +127,5 @@ def setup_bot_handlers(admin_bot: TelegramClient):
                     print("✅ Post successful!")
                 except Exception as e:
                     print(f"❌ Failed to post: {e}")
-
-
         except Exception as e:
             print(f"❌ Error in handle_buttons: {e}")

@@ -1,7 +1,11 @@
 import os
+import asyncio
 from telethon import TelegramClient, events
 from telethon.tl.custom import Button
 from translator import translate_to_target
+
+# Global dictionary to track auto-post timers
+pending_auto_posts = {}
 
 def setup_media_handlers(userbot: TelegramClient, admin_bot: TelegramClient):
     
@@ -9,6 +13,12 @@ def setup_media_handlers(userbot: TelegramClient, admin_bot: TelegramClient):
     raw_channels = os.getenv("SOURCE_CHANNELS", "").split(",")
     SOURCE_CHANNELS = [int(c.strip()) for c in raw_channels if c.strip()]
     ADMIN_GROUP = int(os.getenv("ADMIN_GROUP"))
+    TARGET_CHANNEL = os.getenv("TARGET_CHANNEL")
+    
+    try:
+        if TARGET_CHANNEL.startswith("-100") or TARGET_CHANNEL.isdigit():
+            TARGET_CHANNEL = int(TARGET_CHANNEL)
+    except: pass
 
     print(f"🔍 Listening to multiple source channels: {SOURCE_CHANNELS}")
 
@@ -24,6 +34,34 @@ def setup_media_handlers(userbot: TelegramClient, admin_bot: TelegramClient):
             return 
         print("\n📝 --- SINGLE MESSAGE DETECTED ---")
         await process_and_send_draft([event.message], admin_bot, ADMIN_GROUP)
+    
+    async def auto_post_timer(msg_ids_str, admin_group, target_channel, delay=1800):
+        """Wait 30 minutes, then post if not cancelled."""
+        await asyncio.sleep(delay)
+        print(f"⏰ Timer expired for {msg_ids_str}. Auto-posting now...")
+        
+        # We trigger the 'post_album' logic directly
+        msg_ids = [int(i) for i in msg_ids_str.split(",") if i.strip()]
+        album_messages = await admin_bot.get_messages(admin_group, ids=msg_ids)
+        valid_messages = [m for m in album_messages if m and not hasattr(m, 'empty')]
+        
+        if valid_messages:
+            valid_messages.sort(key=lambda x: x.id)
+            final_caption = next((m.text for m in valid_messages if m.text), None)
+            if final_caption and "*To edit:" in final_caption:
+                final_caption = final_caption.split("\n\n*To edit:")[0]
+
+            if len(valid_messages) > 1:
+                await admin_bot.send_file(target_channel, valid_messages, caption=final_caption, parse_mode='html')
+            else:
+                if valid_messages[0].media:
+                    await admin_bot.send_file(target_channel, valid_messages[0].media, caption=final_caption, parse_mode='html')
+                else:
+                    await admin_bot.send_message(target_channel, final_caption, parse_mode='html')
+            
+            await admin_bot.send_message(admin_group, "🤖 **Auto-posted after 30 minutes.**")
+        
+        pending_auto_posts.pop(msg_ids_str, None)
 
     async def process_and_send_draft(messages, admin_bot, admin_group):
         text_to_translate = ""
