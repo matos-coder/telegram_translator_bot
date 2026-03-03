@@ -12,9 +12,14 @@ async def translate_to_target(text: str, target_lang="Amharic") -> str:
         return ""
         
     prompt = f"""
-    You are an expert translator. Translate the following text into {target_lang}.
-    CRITICAL INSTRUCTION: Preserve all HTML tags (<b>, <i>, <a href="...">, <code>) exactly as they are. 
-    Output ONLY the translated text with the tags.
+    You are an expert sports journalist and translator specializing in Manchester United. 
+    Translate the following text into {target_lang}.
+    
+    CRITICAL CONTEXT & RULES:
+    - This is for a Manchester United news channel. 
+    - Accurately translate football/soccer terminology, club slang (e.g., "Red Devils", "Gaffer", "Old Trafford"), and maintain the hype and tone of sports journalism.
+    - Preserve all HTML tags (<b>, <i>, <a href="...">, <code>) exactly as they are. 
+    - Output ONLY the translated text with the tags. No conversational filler.
     
     Original Text:
     {text}
