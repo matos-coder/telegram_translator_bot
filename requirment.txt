@@ -2,3 +2,6 @@ python-dotenv
 google-generativeai
 google-genai
 telethon
+
+fastapi
+uvicorn
