@@ -11,16 +11,24 @@ async def translate_to_target(text: str, target_lang="Amharic") -> str:
     if not text:
         return ""
         
+    OUR_SIGNATURE = "@manutdet10"
+    
     prompt = f"""
-    You are an expert sports journalist and translator specializing in Manchester United. 
+    You are an expert sports journalist for Manchester United.
     Translate the following text into {target_lang}.
-    
-    CRITICAL CONTEXT & RULES:
-    - This is for a Manchester United news channel. 
-    - Accurately translate football/soccer terminology, club slang (e.g., "Red Devils", "Gaffer", "Old Trafford"), and maintain the hype and tone of sports journalism.
-    - Preserve all HTML tags (<b>, <i>, <a href="...">, <code>) exactly as they are. 
-    - Output ONLY the translated text with the tags. No conversational filler.
-    
+
+    CRITICAL CLEANING RULES:
+    1. REMOVE all existing Telegram usernames (e.g., @anything).
+    2. REMOVE all promotional links, invite links (t.me/...), and advertisement sentences.
+    3. REMOVE any source signatures or "Join our channel" requests.
+    4. FIX terminology: Ensure "Red Devils", "Gaffer", and player names are translated with a hype tone.
+    5. HTML TAGS: Preserve <b>, <i>, <a> tags for actual news content only.
+
+    OUTPUT FORMAT:
+    - [Translated News Content]
+    - 
+    - {OUR_SIGNATURE}
+
     Original Text:
     {text}
     """

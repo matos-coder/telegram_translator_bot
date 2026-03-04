@@ -1,5 +1,7 @@
 .env
 venv
+__pycache__
+__pycache__/
 admin_bot_session.session
 admin_bot_session.session-journal
 userbot_session.session

@@ -109,6 +109,8 @@ def setup_bot_handlers(admin_bot: TelegramClient):
                 # 4. Extract the caption from the first message in the group
                 # Telegram usually stores the album caption in the first message's text field
                 final_caption = next((m.text for m in valid_messages if m.text), None)
+                
+                clean_caption = final_caption.split("*To edit:")[0].strip() if final_caption else ""
 
                 try:
                     if len(valid_messages) > 1:
@@ -120,8 +122,11 @@ def setup_bot_handlers(admin_bot: TelegramClient):
                             parse_mode='html'
                         )
                     else:
-                        # Single message (already contains its own caption/text)
-                        await admin_bot.send_message(TARGET_CHANNEL, valid_messages[0])
+                        if valid_messages[0].media:
+                            await admin_bot.send_file(TARGET_CHANNEL, valid_messages[0].media, caption=clean_caption, parse_mode='html')
+                        else:
+                            # CRITICAL FIX: Send only the clean_caption string, NOT the message object
+                            await admin_bot.send_message(TARGET_CHANNEL, clean_caption, parse_mode='html')
                         
                     await event.edit("✅ Manually Accepted & Posted")
                     print("✅ Post successful!")
