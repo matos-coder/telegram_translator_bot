@@ -38,31 +38,41 @@ def setup_media_handlers(userbot: TelegramClient, admin_bot: TelegramClient):
     async def auto_post_timer(msg_ids_str, admin_group, target_channel, delay=1800):
         """Wait 30 minutes, then post if not cancelled."""
         await asyncio.sleep(delay)
+        
+        msg_ids = [int(i) for i in msg_ids_str.split(",") if i.strip()]
+        msg_key = tuple(msg_ids)
+
+        # Check if it was already cancelled/handled
+        if msg_key not in pending_auto_posts:
+            return
+
         print(f"⏰ Timer expired for {msg_ids_str}. Auto-posting now...")
         
-        # We trigger the 'post_album' logic directly
-        msg_ids = [int(i) for i in msg_ids_str.split(",") if i.strip()]
         album_messages = await admin_bot.get_messages(admin_group, ids=msg_ids)
         valid_messages = [m for m in album_messages if m and not hasattr(m, 'empty')]
         
         if valid_messages:
             valid_messages.sort(key=lambda x: x.id)
-            final_caption = next((m.text for m in valid_messages if m.text), None)
-            if final_caption and "*To edit:" in final_caption:
-                final_caption = final_caption.split("\n\n*To edit:")[0]
+            final_caption = next((m.text for m in valid_messages if m.text), "")
+            
+            # --- CLEANING LOGIC ---
+            # Remove the admin instructions before public posting
+            clean_text = final_caption.split("*To edit:")[0].strip()
 
             if len(valid_messages) > 1:
-                await admin_bot.send_file(target_channel, valid_messages, caption=final_caption, parse_mode='html')
+                await admin_bot.send_file(target_channel, valid_messages, caption=clean_text, parse_mode='html')
             else:
                 if valid_messages[0].media:
-                    await admin_bot.send_file(target_channel, valid_messages[0].media, caption=final_caption, parse_mode='html')
+                    await admin_bot.send_file(target_channel, valid_messages[0].media, caption=clean_text, parse_mode='html')
                 else:
-                    await admin_bot.send_message(target_channel, final_caption, parse_mode='html')
+                    # Fix text-only post here too
+                    await admin_bot.send_message(target_channel, clean_text, parse_mode='html')
             
             await admin_bot.send_message(admin_group, "🤖 **Auto-posted after 30 minutes.**")
         
-        pending_auto_posts.pop(msg_ids_str, None)
-
+        pending_auto_posts.pop(msg_key, None)
+    
+    
     async def process_and_send_draft(messages, admin_bot, admin_group):
         text_to_translate = ""
         downloaded_files = []
@@ -77,6 +87,7 @@ def setup_media_handlers(userbot: TelegramClient, admin_bot: TelegramClient):
         translated_text = await translate_to_target(text_to_translate)
         
         try:
+            msg_ids_str = ""
             if downloaded_files:
                 sent_msgs = await admin_bot.send_file(
                     admin_group, 
@@ -103,16 +114,28 @@ def setup_media_handlers(userbot: TelegramClient, admin_bot: TelegramClient):
                     buttons=buttons
                 )
             else:
+                # Text-only draft
                 temp_msg = await admin_bot.send_message(admin_group, translated_text, parse_mode='html')
+                msg_ids_str = str(temp_msg.id)
                 buttons = [
-                    [Button.inline("✅ Accept & Post", data=f"post_album:{temp_msg.id}".encode())],
-                    [Button.inline("❌ Reject", data=f"reject_album:{temp_msg.id}".encode())]
+                    [Button.inline("✅ Accept & Post", data=f"post_album:{msg_ids_str}".encode())],
+                    [Button.inline("❌ Reject", data=f"reject_album:{msg_ids_str}".encode())]
                 ]
                 await temp_msg.edit(
                     text=f"{translated_text}\n\n*To edit: Simply REPLY to this message with your new text.*",
                     buttons=buttons,
                     parse_mode='html'
                 )
+
+            # --- CRITICAL FIX: START THE TIMER HERE ---
+            # We store the task in the dictionary so handle_buttons can cancel it if you click "Accept"
+            task = asyncio.create_task(auto_post_timer(msg_ids_str, admin_group, TARGET_CHANNEL))
+            pending_auto_posts[tuple(int(i) for i in msg_ids_str.split(","))] = task
+            
+            print(f"⏰ Timer started for {msg_ids_str}. Will post in 30 minutes.")
             print("📬 Draft successfully delivered!")
+
         except Exception as e:
             print(f"❌ Error sending draft: {e}")
+
+    
