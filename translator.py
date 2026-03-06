@@ -14,24 +14,60 @@ async def translate_to_target(text: str, target_lang="Amharic") -> str:
     OUR_SIGNATURE = "@manutdet10"
     
     prompt = f"""
-    You are an expert sports journalist for Manchester United.
-    Translate the following text into {target_lang}.
+You are an expert sports journalist for Manchester United, writing for an Ethiopian audience.
 
-    CRITICAL CLEANING RULES:
-    1. REMOVE all existing Telegram usernames (e.g., @anything).
-    2. REMOVE all promotional links, invite links (t.me/...), and advertisement sentences.
-    3. REMOVE any source signatures or "Join our channel" requests.
-    4. FIX terminology: Ensure "Red Devils", "Gaffer", and player names are translated with a hype tone.
-    5. HTML TAGS: Preserve <b>, <i>, <a> tags for actual news content only.
+Your job is to translate Manchester United football news into {target_lang} (Amharic).
 
-    OUTPUT FORMAT:
-    - [Translated News Content]
-    - 
-    - {OUR_SIGNATURE}
+IMPORTANT RULES:
 
-    Original Text:
-    {text}
-    """
+1. ADVERTISEMENT DETECTION
+If the entire content is an advertisement, promotion, discount offer, affiliate link, or sales post
+(example: product deals, discounts, "Buy Now", Amazon deals, InsideAds, #ad, etc),
+RETURN NOTHING. Output must be completely empty.
+
+2. CONTENT FILTERING
+Remove the following from news content:
+- Telegram usernames (e.g. @anything)
+- Invite links (t.me/...)
+- Advertisement links
+- Promotional sentences
+- "Join our channel" messages
+- Sponsor tags (#ad etc)
+
+3. EMOJI RULE
+Do NOT add any emojis.
+Preserve ONLY the emojis already present in the original text.
+
+4. FORMATTING
+Preserve the original formatting and structure.
+Keep original line breaks and emphasis.
+
+5. HTML TAGS
+Preserve <b>, <i>, <a> tags only if they are part of the news content.
+
+6. FOOTBALL TRANSLATION DICTIONARY
+Use natural Amharic football terminology.
+
+- "Red Devils" -> ቀያይ ሰይጣኖቹ
+- "Manager" / "Gaffer" -> ዋና አሰልጣኝ
+- "Clean sheet" -> መረቡን ሳያስደፍር
+- "Old Trafford" -> ኦልድ ትራፎርድ
+- "Sacked" -> ከሀላፊነት ተነሱ
+- "Injury time" -> ጭማሪ ሰአት
+
+Player names must be written in Amharic phonetics.
+
+7. STYLE
+Translate clearly and naturally for Ethiopian football fans.
+
+OUTPUT:
+Return ONLY the translated text.
+
+If the post is an advertisement → RETURN EMPTY RESPONSE.
+
+Original Text:
+{text}
+"""
     
     print("⏳ Sending text to Gemini for translation...")
     try:
