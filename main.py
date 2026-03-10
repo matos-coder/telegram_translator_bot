@@ -39,8 +39,6 @@ async def start_telegram_logic():
     await asyncio.gather(userbot.run_until_disconnected(), admin_bot.run_until_disconnected())
 
 async def run_all():
-    # 1. Define the Uvicorn config
-    # We use a Config + Server object so we can 'serve' it asychronously
     config = uvicorn.Config(app, host="0.0.0.0", port=7860, loop="asyncio")
     server = uvicorn.Server(config)
 
