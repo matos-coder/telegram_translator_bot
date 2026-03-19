@@ -1,6 +1,6 @@
 # Translator Bot
 
-An automated **Manchester United news aggregator and translator**.  
+An automated **news aggregator and translator**.  
 This bot monitors multiple Telegram “source” channels, translates the content into **Amharic** using **Gemini 2.5 Flash**, and provides an admin‑controlled workflow for approval, manual editing, and 30‑minute auto‑posting.
 
 ---
